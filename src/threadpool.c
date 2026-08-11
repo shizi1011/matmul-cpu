@@ -143,8 +143,7 @@ void threadpool_wait(threadpool_t *threadpool) {
 
   pthread_mutex_lock(&(threadpool->mutex));
   while (1) {
-    if (threadpool->work_begin != NULL ||
-        (!threadpool->stop && threadpool->working_cnt != 0)) {
+    if (threadpool->work_begin != NULL || (threadpool->working_cnt != 0)) {
       pthread_cond_wait(&(threadpool->working_cond), &(threadpool->mutex));
     } else {
       break;
