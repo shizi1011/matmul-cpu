@@ -91,7 +91,13 @@ static void *threadpool_worker(void *arg) {
 
 threadpool_t *threadpool_create(size_t n_threads) {
 
+  if (n_threads == 0 || n_threads > MAX_THREADS)
+    return NULL;
+
   threadpool_t *threadpool = malloc(sizeof(threadpool_t));
+  if (!threadpool)
+    return NULL;
+
   {
     threadpool->n_threads = n_threads;
     threadpool->work_begin = NULL;
@@ -107,6 +113,8 @@ threadpool_t *threadpool_create(size_t n_threads) {
   // pthread_t *workers = malloc(sizeof(pthread_t) * n_threads);
   // memset(workers, 0, sizeof(pthread_t) * n_threads);
   pthread_t *workers = calloc(n_threads, sizeof(pthread_t));
+  if (!workers)
+    return NULL;
   threadpool->workers = workers;
 
   for (size_t i = 0; i < n_threads; i++) {
