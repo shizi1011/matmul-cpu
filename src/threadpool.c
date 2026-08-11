@@ -171,7 +171,9 @@ bool threadpool_add_work(threadpool_t *threadpool, thread_func_t func,
   }
   threadpool->work_end = new_work;
 
-  pthread_cond_broadcast(&(threadpool->work_cond));
+  // pthread_cond_broadcast(&(threadpool->work_cond));
+  pthread_cond_signal(&(threadpool->work_cond));
+
   pthread_mutex_unlock(&(threadpool->mutex));
 
   return true;
