@@ -80,9 +80,8 @@ static void *threadpool_worker(void *arg) {
 
     pthread_mutex_lock(&threadpool->mutex);
     threadpool->working_cnt--;
-    if (!threadpool->stop && threadpool->working_cnt == 0 &&
-        !threadpool->work_begin)
-      pthread_cond_signal(&(threadpool->working_cond));
+    if (threadpool->working_cnt == 0 && !threadpool->work_begin)
+      pthread_cond_broadcast(&(threadpool->working_cond));
     pthread_mutex_unlock(&(threadpool->mutex));
   }
 
