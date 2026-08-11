@@ -159,6 +159,11 @@ bool threadpool_add_work(threadpool_t *threadpool, thread_func_t func,
     return false;
 
   pthread_mutex_lock(&threadpool->mutex);
+  if (threadpool->stop) {
+    pthread_mutex_unlock(&threadpool->mutex);
+    threadpool_work_destroy(new_work);
+    return false;
+  }
   if (!threadpool->work_begin) {
     threadpool->work_begin = new_work;
   } else {
