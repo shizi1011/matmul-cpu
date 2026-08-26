@@ -137,6 +137,8 @@ int main(int argc, char *argv[]) {
       matmul_openmp(A, B, C, m, n, k);
 #elif defined(THREADPOOL)
       matmul_threadpool(A, B, C, m, n, k);
+#elif defined(LOCKFREE)
+      matmul_lockfree(A, B, C, m, n, k);
 #else
       matmul_naive(A, B, C, m, n, k);
 #endif

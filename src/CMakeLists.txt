@@ -22,6 +22,7 @@ add_library(
     matmul_openmp.c
     matmul_naive.c
     matmul_threadpool.c
+    matmul_lockfree.c
     threadpool.c
     kernel_utils.c
     utils.c
@@ -29,3 +30,8 @@ add_library(
 target_include_directories(matmul PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(matmul PRIVATE matmul_compile_flags OpenMP::OpenMP_C)
 target_compile_definitions(matmul PRIVATE NTHREADS=${NTHREADS})
+
+# add_library(matmul_lockfree matmul_lockfree.c kernel_utils.c)
+# target_include_directories(matmul_lockfree PUBLIC "${PROJECT_SOURCE_DIR}/src")
+# target_link_libraries(matmul_lockfree PRIVATE matmul_compile_flags)
+# target_compile_definitions(matmul_lockfree PRIVATE NTHREADS=${NTHREADS})

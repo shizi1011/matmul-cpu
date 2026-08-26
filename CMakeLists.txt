@@ -19,6 +19,7 @@ add_subdirectory(src)
 option(OPENBLAS "Use OPENBLAS library" OFF)
 option(OPENMP "Use matmul_openmp implementation" OFF)
 option(THREADPOOL "Use matmul_threadpool implementation" OFF)
+option(LOCKFREE "Use matmul_lockfree implementation" OFF)
 
 add_executable(test_matmul test.c)
 target_link_libraries(test_matmul PRIVATE matmul m OpenBLAS::OpenBLAS)
@@ -29,6 +30,7 @@ target_compile_definitions(
         $<$<BOOL:${OPENBLAS}>:OPENBLAS>
         $<$<BOOL:${OPENMP}>:OPENMP>
         $<$<BOOL:${THREADPOOL}>:THREADPOOL>
+        $<$<BOOL:${LOCKFREE}>:LOCKFREE>
 )
 
 add_executable(benchmark benchmark.c)
@@ -40,6 +42,7 @@ target_compile_definitions(
         $<$<BOOL:${OPENBLAS}>:OPENBLAS>
         $<$<BOOL:${OPENMP}>:OPENMP>
         $<$<BOOL:${THREADPOOL}>:THREADPOOL>
+        $<$<BOOL:${LOCKFREE}>:LOCKFREE>
 )
 
 # if(OPENBLAS)

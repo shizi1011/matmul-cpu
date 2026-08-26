@@ -21,17 +21,23 @@ int get_niter(int matsize, int niter_start, int niter_end, int matsize_start,
   return round(a / matsize + b);
 }
 
+// void init_rand(float *mat, size_t n_elem) {
+//
+// #pragma omp parallel
+//   {
+//     // Thread-local seed initialized using the thread ID
+//     unsigned int seed = 1234 + omp_get_thread_num();
+//
+// #pragma omp for
+//     for (size_t i = 0; i < n_elem; i++) {
+//       mat[i] = (float)rand_r(&seed) / (float)RAND_MAX;
+//     }
+//   }
+// }
+
 void init_rand(float *mat, size_t n_elem) {
-
-#pragma omp parallel
-  {
-    // Thread-local seed initialized using the thread ID
-    unsigned int seed = 1234 + omp_get_thread_num();
-
-#pragma omp for
-    for (size_t i = 0; i < n_elem; i++) {
-      mat[i] = (float)rand_r(&seed) / (float)RAND_MAX;
-    }
+  for (size_t i = 0; i < n_elem; i++) {
+    mat[i] = rand() / (float)RAND_MAX;
   }
 }
 
