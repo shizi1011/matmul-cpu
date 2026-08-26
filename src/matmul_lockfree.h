@@ -29,6 +29,8 @@ struct thread_compute_state {
   pthread_t thread;
   int ith;
   // struct matmul_thread_params *thrd_params;
+
+  float *blockA_packed;
 };
 
 struct threadpool {
@@ -44,6 +46,7 @@ struct threadpool {
   int n_threads;
   struct thread_compute_state *workers;
 
+  float *blockB_packed;
   struct matmul_params *params;
 };
 

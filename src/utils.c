@@ -76,3 +76,18 @@ void printfn(const char *str, int n) {
     printf("%s", str);
   }
 }
+
+void *aligned_malloc(size_t size) {
+  const int alignment = 64;
+
+  if (size == 0) {
+    return NULL;
+  }
+  void *aligned_memory = NULL;
+  int result = posix_memalign(&aligned_memory, alignment, size);
+
+  if (result != 0)
+    return NULL;
+
+  return aligned_memory;
+}

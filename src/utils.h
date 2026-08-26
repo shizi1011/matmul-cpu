@@ -32,3 +32,4 @@ struct val_stat_t validate_mat(float *mat, float *mat_ref, size_t n_elem,
                                float eps);
 uint64_t timer();
 void printfn(const char *str, int n);
+void *aligned_malloc(size_t size);

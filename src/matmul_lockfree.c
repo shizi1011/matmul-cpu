@@ -1,6 +1,8 @@
 #include "matmul_lockfree.h"
 #include "kernel_utils.h"
+#include "utils.h"
 #include <immintrin.h>
+#include <omp.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -21,7 +23,7 @@
 #define ceil(x, n) (((x) + (n) - 1) / (n))
 
 // static float blockA_packed[MC * KC] __attribute__((aligned(64)));
-static float blockB_packed[NC * KC] __attribute__((aligned(64)));
+// static float blockB_packed[NC * KC] __attribute__((aligned(64)));
 
 static void pack_panelB(float *B, float *blockB_packed, int nr, int kc, int K) {
   for (int p = 0; p < kc; p++) {
@@ -82,9 +84,11 @@ static void threadpool_barrier(struct threadpool *tpool) {
 }
 
 static void matmul_compute_one_chunk(struct matmul_params *params,
-                                     struct matmul_thread_params *thrd_params) {
+                                     struct matmul_thread_params *thrd_params,
+                                     float *blockA_packed,
+                                     float *blockB_packed) {
 
-  float blockA_packed[MC * KC] __attribute__((aligned(64)));
+  // float blockA_packed[MC * KC] __attribute__((aligned(64)));
 
   float *A = params->A;
   // float *B = args->B;
@@ -123,6 +127,9 @@ static void *threadpool_worker(void *data) {
   float *A = params->A;
   float *B = params->B;
   float *C = params->C;
+
+  float *blockA_packed = state->blockA_packed;
+  float *blockB_packed = tpool->blockB_packed;
 
   int M = params->M;
   int N = params->N;
@@ -183,7 +190,7 @@ static void *threadpool_worker(void *data) {
 
         int nr = min(NR, nc - current_chunk_1 * NR);
 
-        pack_panelB(&B[current_chunk_1 * NR * K],
+        pack_panelB(&B[j * K + p + current_chunk_1 * NR * K],
                     &blockB_packed[current_chunk_1 * NR * kc], nr, kc, K);
 
         current_chunk_1 = atomic_fetch_add_explicit(&tpool->current_chunk_1, 1,
@@ -196,7 +203,8 @@ static void *threadpool_worker(void *data) {
         struct matmul_thread_params thrd_params = {nc, kc, current_chunk_2 * MC,
                                                    j,  p,  load};
 
-        matmul_compute_one_chunk(params, &thrd_params);
+        matmul_compute_one_chunk(params, &thrd_params, blockA_packed,
+                                 blockB_packed);
 
         current_chunk_2 = atomic_fetch_add_explicit(&tpool->current_chunk_2, 1,
                                                     memory_order_relaxed);
@@ -220,6 +228,7 @@ static struct threadpool *threadpool_init(struct matmul_params *params,
     tpool->generation = false;
     tpool->current_chunk_1 = 0;
     tpool->current_chunk_2 = 0;
+    tpool->blockB_packed = aligned_malloc(NC * KC * sizeof(float));
   }
   // pthread_mutex_init(&tpool->mutex, NULL);
   // pthread_cond_init(&tpool->cond, NULL);
@@ -230,6 +239,7 @@ static struct threadpool *threadpool_init(struct matmul_params *params,
   for (int i = 0; i < num_threads; ++i) {
     workers[i].ith = i;
     workers[i].tpool = tpool;
+    workers[i].blockA_packed = aligned_malloc(MC * KC * sizeof(float));
   }
   tpool->workers = workers;
 
@@ -251,12 +261,16 @@ static void threadpool_destroy(struct threadpool *tpool) {
   for (int i = 0; i < tpool->n_threads; ++i) {
     pthread_join(tpool->workers[i].thread, NULL);
   }
+  for (int i = 0; i < tpool->n_threads; ++i) {
+    free(tpool->workers[i].blockA_packed);
+  }
 
   // pthread_mutex_unlock(&tpool->mutex);
   //
   // pthread_mutex_destroy(&tpool->mutex);
   // pthread_cond_destroy(&tpool->cond);
   free(tpool->workers);
+  free(tpool->blockB_packed);
   free(tpool);
 }
 
