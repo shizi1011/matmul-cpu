@@ -12,7 +12,7 @@ typedef struct threadpool threadpool_t;
 
 typedef void (*thread_func_t)(void *args);
 
-threadpool_t *threadpool_create(size_t num_threads);
+threadpool_t *threadpool_create(size_t num_threads, size_t queue_capacity);
 void threadpool_destroy(threadpool_t *threadpool);
 
 bool threadpool_add_work(threadpool_t *threadpool, thread_func_t func,

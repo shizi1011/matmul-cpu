@@ -114,7 +114,7 @@ static void matmul_worker(void *thread_args) {
 }
 
 void matmul_threadpool(float *A, float *B, float *C, int M, int N, int K) {
-  threadpool_t *threadpool = threadpool_create(NTHREADS);
+  threadpool_t *threadpool = threadpool_create(NTHREADS, 2048);
   struct ThreadArgs base_args = {.A = A,
                                  // .B = B,
                                  .C = C,
