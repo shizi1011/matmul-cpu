@@ -7,10 +7,6 @@
 
 #include <cblas.h>
 
-// #ifdef LOCKFREE
-// #include "matmul_lockfree_v2.h"
-// #endif
-
 #ifdef GGML_MATMUL
 void matmul_ggml(float *A, float *B, float *C, int M, int N, int K);
 #endif
