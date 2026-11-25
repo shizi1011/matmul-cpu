@@ -12,6 +12,10 @@
 #include <cblas.h>
 #endif
 
+#ifdef GGML_MATMUL
+void matmul_ggml(float *A, float *B, float *C, int M, int N, int K);
+#endif
+
 #define MEMALIGN 64
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
@@ -44,13 +48,10 @@ int main(int argc, char *argv[]) {
     int warmup_matsize = minsize + (int)(npts / 2 - 1) * stepsize;
     int m = warmup_matsize;
     int n = warmup_matsize;
-    int k = warmup_matsize;
-    float *A = (float *)_mm_malloc(
-        warmup_matsize * warmup_matsize * sizeof(float), MEMALIGN);
-    float *B = (float *)_mm_malloc(
-        warmup_matsize * warmup_matsize * sizeof(float), MEMALIGN);
-    float *C = (float *)_mm_malloc(
-        warmup_matsize * warmup_matsize * sizeof(float), MEMALIGN);
+    int k = 2048;
+    float *A = (float *)_mm_malloc(m * k * sizeof(float), MEMALIGN);
+    float *B = (float *)_mm_malloc(n * k * sizeof(float), MEMALIGN);
+    float *C = (float *)_mm_malloc(m * n * sizeof(float), MEMALIGN);
 
     const char *warmup_title = "Warm-up";
     int warmup_title_padding = divider_len / 2 + strlen(warmup_title) / 2;
@@ -92,12 +93,16 @@ int main(int argc, char *argv[]) {
     int matsize = matsizes[i];
     int m = matsize;
     int n = matsize;
-    int k = matsize;
+    int k = 2048;
     // uint64_t start = timer();
 
-    float *A = (float *)_mm_malloc(matsize * matsize * sizeof(float), MEMALIGN);
-    float *B = (float *)_mm_malloc(matsize * matsize * sizeof(float), MEMALIGN);
-    float *C = (float *)_mm_malloc(matsize * matsize * sizeof(float), MEMALIGN);
+    // float *A = (float *)_mm_malloc(matsize * matsize * sizeof(float),
+    // MEMALIGN); float *B = (float *)_mm_malloc(matsize * matsize *
+    // sizeof(float), MEMALIGN); float *C = (float *)_mm_malloc(matsize *
+    // matsize * sizeof(float), MEMALIGN);
+    float *A = (float *)_mm_malloc(m * k * sizeof(float), MEMALIGN);
+    float *B = (float *)_mm_malloc(k * n * sizeof(float), MEMALIGN);
+    float *C = (float *)_mm_malloc(m * n * sizeof(float), MEMALIGN);
 
     // uint64_t end = timer();
     // double exec_time = (end - start) * 1e-9;
@@ -105,8 +110,16 @@ int main(int argc, char *argv[]) {
     //
     // start = timer();
 
-    init_rand(A, matsize * matsize);
-    init_rand(B, matsize * matsize);
+    init_rand(A, m * k);
+    init_rand(B, n * k);
+#ifdef GGML_MATMUL
+    float *B_transposed = (float *)_mm_malloc(n * k * sizeof(float), 64);
+    for (int j = 0; j < n; ++j) {
+      for (int i = 0; i < k; ++i) {
+        B_transposed[i * n + j] = B[j * k + i];
+      }
+    }
+#endif
 
     // end = timer();
     // exec_time = (end - start) * 1e-9;
@@ -121,24 +134,19 @@ int main(int argc, char *argv[]) {
 
     uint64_t start = timer();
     for (int j = 0; j < n_iter; j++) {
-// #ifdef OPENBLAS
-//       cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1, A,
-//       m,
-//                   B, k, 0, C, m);
-// #else
-//
-//       matmul_threadpool(A, B, C, m, n, k);
-//       // matmul_parallel(A, B, C, m, n, k);
-// #endif
+
 #if defined(OPENBLAS)
       cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1, A, m,
                   B, k, 0, C, m);
 #elif defined(OPENMP)
       matmul_openmp(A, B, C, m, n, k);
+
 #elif defined(THREADPOOL)
       matmul_threadpool(A, B, C, m, n, k);
-#elif defined(LOCKFREE)
-      matmul_lockfree(A, B, C, m, n, k);
+
+#elif defined(GGML_MATMUL)
+      matmul_ggml(A, B_transposed, C, m, n, k);
+
 #else
       matmul_naive(A, B, C, m, n, k);
 #endif
@@ -146,17 +154,22 @@ int main(int argc, char *argv[]) {
     uint64_t end = timer();
 
     double exec_time = (end - start) * 1e-9 / n_iter;
-    double FLOP = 2 * (double)matsize * matsize * matsize;
+    double FLOP = 2 * (double)m * n * k;
     int gflops = (int)(FLOP / exec_time / 1e9);
     gflops_all[i] = gflops;
 
     printf("exec_time : %lf\n", exec_time);
-    printf("m=n=k=%i | GFLOPS = %i\n", matsize, gflops);
-    start = timer();
+    printf("m=%i, n=%i, k=%i | GFLOPS = %i\n", m, n, k, gflops);
+    // start = timer();
 
     _mm_free(A);
     _mm_free(B);
     _mm_free(C);
+
+#ifdef GGML_MATMUL
+    _mm_free(B_transposed);
+#endif
+
     // end = timer();
     // exec_time = (end - start) * 1e-9;
     // printf("m=n=k=%i, __mm_free time : %lf\n", matsize, exec_time);
@@ -193,5 +206,6 @@ int main(int argc, char *argv[]) {
 
   free(gflops_all);
   free(matsizes);
+
   return 0;
 }

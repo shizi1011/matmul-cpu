@@ -5,8 +5,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef OPENBLAS
+// #ifdef OPENBLAS
 #include <cblas.h>
+// #endif
+
+#ifdef GGML_MATMUL
+void matmul_ggml(float *A, float *B, float *C, int M, int N, int K);
 #endif
 
 int main(int argc, char *argv[]) {
@@ -31,11 +35,21 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < n_tests; i += 1) {
     int matsize = matsize_min + i * matsize_step;
     int m = matsize, n = matsize, k = matsize;
+    printf("================\n");
+    printf("M = %i\nN = %i\nK = %i\n", m, n, k);
+    printf("================\n");
 
     float *A = (float *)_mm_malloc(m * k * sizeof(float), 64);
     float *B = (float *)_mm_malloc(n * k * sizeof(float), 64);
     float *C = (float *)_mm_malloc(m * n * sizeof(float), 64);
     float *C_ref = (float *)_mm_malloc(m * n * sizeof(float), 64);
+
+#ifdef GGML_MATMUL
+    float *B_transposed = (float *)_mm_malloc(n * k * sizeof(float), 64);
+    float *C_ref_transposed = (float *)_mm_malloc(m * n * sizeof(float), 64);
+
+#endif
+
     init_rand(A, m * k);
     init_rand(B, k * n);
 
@@ -51,19 +65,51 @@ int main(int argc, char *argv[]) {
 #if defined(OPENBLAS)
     cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1, A, m, B,
                 k, 0, C, m);
+
 #elif defined(OPENMP)
     matmul_openmp(A, B, C, m, n, k);
+
 #elif defined(THREADPOOL)
     matmul_threadpool(A, B, C, m, n, k);
+
 #elif defined(LOCKFREE)
-    matmul_lockfree(A, B, C, m, n, k);
+    float *B_transposed = (float *)_mm_malloc(n * k * sizeof(float), 64);
+    float *C_ref_transposed = (float *)_mm_malloc(m * n * sizeof(float), 64);
+
+    matmul_lockfree(A, B_transposed, C, m, n, k);
+
+#elif defined(GGML_MATMUL)
+    for (int j = 0; j < n; ++j) {
+      for (int i = 0; i < k; ++i) {
+        B_transposed[i * n + j] = B[j * k + i];
+      }
+    }
+
+    matmul_ggml(A, B_transposed, C, m, n, k);
+
 #else
     matmul_naive(A, B, C, m, n, k);
 #endif
 
-    matmul_naive(A, B, C_ref, m, n, k);
+    // matmul_naive(A, B, C_ref, m, n, k);
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1, A, k, B,
+                n, 0, C_ref, n);
 
+#ifdef GGML_MATMUL
+
+    for (int i = 0; i < m; ++i) {
+      for (int j = 0; j < n; ++j) {
+        C_ref_transposed[j * m + i] = C_ref[i * n + j];
+      }
+    }
+
+    struct val_stat_t result = validate_mat(C, C_ref_transposed, m * n, 1e-4);
+#else
     struct val_stat_t result = validate_mat(C, C_ref, m * n, 1e-4);
+
+#endif
+
+    // struct val_stat_t result = validate_mat(C, C_ref, m * n, 1e-4);
     if (result.n_error > 0) {
       n_failed += 1;
       printf("Test #%i: FAILED\n", i + 1);
@@ -74,6 +120,10 @@ int main(int argc, char *argv[]) {
     _mm_free(B);
     _mm_free(C);
     _mm_free(C_ref);
+#ifdef GGML_MATMUL
+    _mm_free(B_transposed);
+    _mm_free(C_ref_transposed);
+#endif
   }
   printf("=====================\n");
   printf("PASSED: %i / %i\n", n_tests - n_failed, n_tests);

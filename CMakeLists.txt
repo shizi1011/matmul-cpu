@@ -43,7 +43,7 @@ target_compile_definitions(
         $<$<BOOL:${OPENMP}>:OPENMP>
         $<$<BOOL:${THREADPOOL}>:THREADPOOL>
         $<$<BOOL:${LOCKFREE}>:LOCKFREE>
-)
+      )
 
 add_executable(test_one test_one.c)
 target_link_libraries(test_one PRIVATE matmul m OpenBLAS::OpenBLAS)

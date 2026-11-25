@@ -10,16 +10,20 @@
 #define NTHREADS 8
 #endif
 
-#define MC MR * NTHREADS * 2  // 640
-#define NC NR * NTHREADS * 20 // 2400
-#define KC 500
+// #define MC MR * NTHREADS * 2  // 640
+// #define NC NR * NTHREADS * 20 // 2400
+// #define KC 500
+#define NC 5000
+#define MC 256
+#define KC 512
 
 #define min(x, y) ((x) < (y)) ? (x) : (y)
+#define round_up(x, n) (((x) + (n) - 1) / (n) * (n))
 
-static float blockA_packed[MC * KC] __attribute__((aligned(64)));
+static float blockA_packed[round_up(MC, MR) * KC] __attribute__((aligned(64)));
 #pragma omp threadprivate(blockA_packed)
 
-static float blockB_packed[NC * KC] __attribute__((aligned(64)));
+static float blockB_packed[round_up(NC, NR) * KC] __attribute__((aligned(64)));
 
 // static int8_t mask[32] __attribute__((aligned(64))) = {
 //     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
