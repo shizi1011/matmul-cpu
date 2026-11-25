@@ -45,6 +45,13 @@ target_compile_definitions(
         $<$<BOOL:${LOCKFREE}>:LOCKFREE>
 )
 
-# if(OPENBLAS)
-#     target_compile_definitions(benchmark PRIVATE OPENBLAS)
-# endif()
+add_executable(test_one test_one.c)
+target_link_libraries(test_one PRIVATE matmul m OpenBLAS::OpenBLAS)
+target_compile_definitions(
+    test_one
+    PRIVATE
+        $<$<BOOL:${OPENBLAS}>:OPENBLAS>
+        $<$<BOOL:${OPENMP}>:OPENMP>
+        $<$<BOOL:${THREADPOOL}>:THREADPOOL>
+        $<$<BOOL:${LOCKFREE}>:LOCKFREE>
+)
