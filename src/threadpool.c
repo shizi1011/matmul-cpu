@@ -1,9 +1,21 @@
-#include "threadpool.h"
+// # "threadpool.h"
 #include <pthread.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef MAX_THREADS
 #define MAX_THREADS 8
+#endif
+
+// struct threadpool;
+// typedef struct threadpool threadpool_t;
+//
+// struct threadpool_work;
+// typedef struct threadpool_work threadpool_work_t;
+
+typedef void (*thread_func_t)(void *args);
 
 struct threadpool_work {
   thread_func_t func;
@@ -11,7 +23,7 @@ struct threadpool_work {
 };
 typedef struct threadpool_work threadpool_work_t;
 
-struct threadpool {
+typedef struct threadpool {
   threadpool_work_t *queue;
   size_t queue_capacity;
   size_t head;
@@ -27,7 +39,7 @@ struct threadpool {
   size_t working_cnt; // how many threads are actively processing work
   size_t n_threads;
   bool stop; // stop threads
-};
+} threadpool_t;
 
 static void *threadpool_worker(void *arg) {
   threadpool_t *threadpool = arg;
@@ -65,7 +77,8 @@ static void *threadpool_worker(void *arg) {
   return NULL;
 }
 
-threadpool_t *threadpool_create(size_t n_threads, size_t queue_capacity) {
+static threadpool_t *threadpool_create(size_t n_threads,
+                                       size_t queue_capacity) {
 
   if (n_threads == 0 || n_threads > MAX_THREADS || queue_capacity == 0)
     return NULL;
@@ -106,7 +119,7 @@ threadpool_t *threadpool_create(size_t n_threads, size_t queue_capacity) {
   return threadpool;
 }
 
-void threadpool_destroy(threadpool_t *threadpool) {
+static void threadpool_destroy(threadpool_t *threadpool) {
 
   pthread_mutex_lock(&(threadpool->mutex));
 
@@ -129,7 +142,7 @@ void threadpool_destroy(threadpool_t *threadpool) {
   free(threadpool);
 }
 
-void threadpool_wait(threadpool_t *threadpool) {
+static void threadpool_wait(threadpool_t *threadpool) {
 
   pthread_mutex_lock(&(threadpool->mutex));
 
@@ -140,8 +153,8 @@ void threadpool_wait(threadpool_t *threadpool) {
   pthread_mutex_unlock(&(threadpool->mutex));
 }
 
-bool threadpool_add_work(threadpool_t *threadpool, thread_func_t func,
-                         void *args) {
+static bool threadpool_add_work(threadpool_t *threadpool, thread_func_t func,
+                                void *args) {
 
   pthread_mutex_lock(&threadpool->mutex);
 

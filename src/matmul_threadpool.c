@@ -1,5 +1,5 @@
 #include "kernel_utils.h"
-#include "threadpool.h"
+#include "threadpool.c"
 #include <immintrin.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,15 +13,20 @@
 #define NTHREADS 8
 #endif
 
-#define MC MR * NTHREADS * 2  // 640
-#define NC NR * NTHREADS * 20 // 2400
-#define KC 500
+// #define MC MR * NTHREADS * 2  // 640
+// #define NC NR * NTHREADS * 20 // 2400
+// #define KC 500
+
+#define NC 5000
+#define MC 256
+#define KC 512
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 #define ceil(x, n) (((x) + (n) - 1) / (n))
+#define round_up(x, n) (((x) + (n) - 1) / (n) * (n))
 
 // static float blockA_packed[MC * KC] __attribute__((aligned(64)));
-static float blockB_packed[NC * KC] __attribute__((aligned(64)));
+static float blockB_packed[round_up(NC, NR) * KC] __attribute__((aligned(64)));
 
 struct ThreadArgs {
   float *A;
@@ -82,7 +87,7 @@ static void pack_blockA(float *A, float *blockA_packed, int mc, int kc, int M) {
 
 static void matmul_worker(void *thread_args) {
 
-  float blockA_packed[MC * KC] __attribute__((aligned(64)));
+  float blockA_packed[round_up(MC, MR) * KC] __attribute__((aligned(64)));
 
   struct ThreadArgs *args = (struct ThreadArgs *)thread_args;
   float *A = args->A;
